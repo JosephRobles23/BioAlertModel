@@ -1,13 +1,15 @@
 #include <Arduino.h>
-#include "SPIFFS.h"
 #include "tensorflow/lite/micro/all_ops_resolver.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/schema/schema_generated.h"
-#include "tensorflow/lite/version.h"
+#include <Wire.h>
+#include "modelo_esp32.h"  // Incluir el archivo que contiene la matriz de bits del modelo
+
+#define TFLITE_VERSION "2.10.0"
 
 // Configuración del micrófono MAX4466
-const int sampleWindow = 50;  // Ventana de muestreo en ms
-const int AMP_PIN = 34;       // Pin del micrófono (ADC1_CHANNEL6)
+const int sampleWindow = 1000;  // Ventana de muestreo en ms
+const int AMP_PIN = 34;         // Pin del micrófono (ADC1_CHANNEL6)
 
 // Configuración de TensorFlow Lite
 constexpr int kTensorArenaSize = 2 * 1024; // Memoria para tensores
@@ -20,31 +22,8 @@ TfLiteTensor* output = nullptr;
 void setup() {
     Serial.begin(115200);
 
-    // Inicializar SPIFFS
-    if (!SPIFFS.begin(true)) {
-        Serial.println("Error al montar el sistema de archivos SPIFFS");
-        while (true);
-    }
-
-    // Leer el modelo desde SPIFFS
-    File modelFile = SPIFFS.open("/modelo_esp32.tflite", "r");
-    if (!modelFile) {
-        Serial.println("Error al abrir el archivo del modelo");
-        while (true);
-    }
-
-    // Cargar el modelo en memoria
-    size_t modelSize = modelFile.size();
-    uint8_t* modelData = (uint8_t*)malloc(modelSize);
-    if (!modelData) {
-        Serial.println("Error al asignar memoria para el modelo");
-        while (true);
-    }
-    modelFile.read(modelData, modelSize);
-    modelFile.close();
-
-    // Configurar el modelo TensorFlow Lite
-    model = tflite::GetModel(modelData);
+    // Cargar el modelo directamente desde la matriz en modelo_esp32.h
+    model = tflite::GetModel(modelo_esp32);
     if (model->version() != TFLITE_SCHEMA_VERSION) {
         Serial.println("Versión del modelo incompatible con TensorFlow Lite Micro.");
         while (true);
@@ -67,7 +46,7 @@ void setup() {
     input = interpreter->input(0);
     output = interpreter->output(0);
 
-    Serial.println("Modelo cargado correctamente. Listo para inferencias.");
+    Serial.println("Modelo cargado correctamente desde archivo .h. Listo para inferencias.");
 }
 
 void loop() {
@@ -121,5 +100,5 @@ void loop() {
         Serial.println("Predicción: Es una motosierra");
     }
 
-    delay(100);  // Esperar antes del próximo ciclo
+    delay(1000);  // Esperar antes del próximo ciclo
 }
